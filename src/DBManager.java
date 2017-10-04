@@ -6,16 +6,16 @@ public enum DBManager {
     INSTANCE;
 
     // TODO: configure
-    private final String IP = "127.0.0.1";
-    private final String URL = "jdbc:mysql://"+IP+"3306/";
-    private final String DB_NAME = "RasheyTevot";
+    private final String LOCALHOST_IP = "127.0.0.1";
+    private final String URL = "jdbc:mysql://"+ LOCALHOST_IP +"3306/";
+    private final String DB_NAME = "rasheytevot";
     public static final String UNAME = "root";
     public static final String UPASS ="";
-    public Connection dbConect;
+    public Connection dbConnect;
 
     DBManager(){
         try {
-            this.dbConect = DriverManager.getConnection(URL+DB_NAME, UNAME, UPASS);
+            this.dbConnect = DriverManager.getConnection(URL+DB_NAME, UNAME, UPASS);
         } catch (SQLException e) {
             throw new RuntimeException();
         }

@@ -1,5 +1,6 @@
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -15,13 +16,16 @@ public class AllScoreHandler implements HttpHandler {
     public void handle(HttpExchange httpEx) throws IOException {
        try {
             byte[] response;
-            final Connection dbConect = DBManager.INSTANCE.dbConect;
-            final PreparedStatement pStmt = dbConect.prepareStatement("SELECT name,points FROM users");// TODO: make DataBase table
+            final Connection dbConect = DBManager.INSTANCE.dbConnect;
+            final PreparedStatement pStmt = dbConect.prepareStatement("SELECT name,points FROM users ORDER BY points ASC;");// TODO: make DataBase table
             final ResultSet results = pStmt.executeQuery();
             results.first();
-            JSONObject scores = new JSONObject();
+            JSONArray scores = new JSONArray();
             for (results.first(); !results.isAfterLast(); results.next()){
-                scores.put(results.getString("name"),results.getInt("points"));
+                scores.put(new JSONObject()
+                        .put("name", results.getString("name"))
+                        .put("points", results.getInt("points"))
+                );
             }
             response = scores.toString().getBytes();
             httpEx.sendResponseHeaders(200, response.length);

@@ -15,22 +15,25 @@ public class UserHandler implements HttpHandler {
     private Connection dbConect;
     private int status = 400; //Default BAD REQUEST
     private byte[] response;
-    private final Boolean login;
+    public static final int LOGIN = 0, SAVE = 1, SIGNUP = 2;
+    private final int ACTION;
 
-    public UserHandler(final Boolean login) {
-        this.login = login;
+    public UserHandler(final int action) {
+        this.ACTION = action;
     }
 
     @Override
     public void handle(final HttpExchange httpEx) throws IOException {
         try {
-            dbConect = DBManager.INSTANCE.dbConect;
-            final JSONObject recievedUser = recievedUser(httpEx);
+            dbConect = DBManager.INSTANCE.dbConnect;
+            final JSONObject receivedUser = recievedUser(httpEx);
             final JSONObject uPoints;
-            if (login) {
-                uPoints = foundUser(recievedUser);
+            if (ACTION == LOGIN) {
+                uPoints = foundUser(receivedUser);
+            } else if (ACTION == SAVE ^ ACTION == SIGNUP) {
+                uPoints = upload(receivedUser);
             } else {
-                uPoints = savePoints(recievedUser);
+                uPoints = null;
             }
             //If not exception thrown by now, request is not attack
             status = 200;
@@ -47,8 +50,8 @@ public class UserHandler implements HttpHandler {
         httpEx.getResponseBody().write(response);
     }
 
-    JSONObject foundUser(final JSONObject recievedUser) throws JSONException, SQLException {
-        final String NAME = recievedUser.getString("name"), PASS = recievedUser.getString("pass");
+    JSONObject foundUser(final JSONObject receivedUser) throws JSONException, SQLException {
+        final String NAME = receivedUser.getString("name"), PASS = receivedUser.getString("pass");
         //TODO - shield from SQL injections
         if (validName(NAME) && validPass(PASS)) {
             PreparedStatement pStmt = dbConect.prepareStatement("SELECT points FROM users WHERE name = '"+NAME+"' AND pass = '"+PASS+"' LIMIT 1");// TODO: make DataBase table
@@ -61,26 +64,32 @@ public class UserHandler implements HttpHandler {
         return null;
     }
 
-    private JSONObject savePoints(final JSONObject recievedUser) throws JSONException, SQLException {
-        final String NAME = recievedUser.getString("name"), PASS = recievedUser.getString("pass");
-        final int POINTS = recievedUser.getInt("points");
+    private JSONObject upload(final JSONObject receivedUser) throws JSONException, SQLException {
+        final String NAME = receivedUser.getString("name"), PASS = receivedUser.getString("pass");
+        final int POINTS = receivedUser.getInt("points");
         //TODO - shield from SQL injections
         if (validName(NAME) && validPass(PASS)) {
-            PreparedStatement pStmt = dbConect.prepareStatement("SELECT id FROM users WHERE name = '"+NAME+"' AND pass = '"+PASS+"' LIMIT 1");// TODO: make DataBase table
+            PreparedStatement pStmt;
+            if (ACTION == SAVE) {
+                pStmt = dbConect.prepareStatement("SELECT id FROM users WHERE name = '"+NAME+"' AND pass = '"+PASS+"' LIMIT 1");
+            } else {
+                pStmt = dbConect.prepareStatement("INSERT INTO `users` (`name`,`pass`,`points`) VALUES ("+NAME+","+PASS+","+POINTS+");");
+
+            }
             ResultSet results = pStmt.executeQuery();
             results.first();
             if (results.getRow()==1){
-                final int ID = results.getInt("id");
-                dbConect.prepareStatement("UPDATE users SET points = "+POINTS+" WHERE id = "+ID).executeUpdate();
-                return new JSONObject().put("save",true);
+                if (ACTION == SAVE) {
+                    final int ID = results.getInt("id");
+                    dbConect.prepareStatement("UPDATE users SET points = " + POINTS + " WHERE id = " + ID).executeUpdate();
+                }
+                return new JSONObject().put("upload",true);
             }
         }
         return null;
     }
 
-    //todo add GET of all scores
 
-    //todo separate request for user and for password
     private JSONObject recievedUser(HttpExchange httpEx) throws IOException, JSONException {
         return new JSONObject(new BufferedReader(new InputStreamReader(httpEx.getRequestBody())).readLine());
     }
